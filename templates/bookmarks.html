@@ -1,0 +1,280 @@
+{% extends "layout.html" %}
+
+{% block title %}My Bookmarks{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <h1 class="mb-4">My Bookmarked Stories</h1>
+    
+    <div id="bookmarks-container" class="row">
+      <div class="text-center">
+        <div class="spinner-border" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    </div>
+    
+    <div id="pagination-controls" class="d-flex justify-content-center mt-4">
+      <!-- Pagination will be inserted here -->
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let currentPage = 1;
+  let totalPages = 1;
+  
+  document.addEventListener('DOMContentLoaded', function() {
+    checkAuthentication();
+    fetchBookmarks(currentPage);
+  });
+  
+  function checkAuthentication() {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      window.location.href = '/login';
+    }
+  }
+  
+  function fetchBookmarks(page) {
+    const bookmarksContainer = document.getElementById('bookmarks-container');
+    bookmarksContainer.innerHTML = `
+      <div class="text-center w-100">
+        <div class="spinner-border" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    `;
+    
+    fetch(`/api/bookmarks?page=${page}&per_page=10`, {
+      credentials: 'same-origin'
+    })
+    .then(response => {
+      if (!response.ok) {
+        if (response.status === 401) {
+          window.location.href = '/login';
+          throw new Error('Authentication required');
+        }
+        throw new Error('Failed to fetch bookmarks');
+      }
+      return response.json();
+    })
+    .then(data => {
+      bookmarksContainer.innerHTML = '';
+      
+      currentPage = data.current_page;
+      totalPages = data.pages;
+      
+      if (data.bookmarks.length === 0) {
+        bookmarksContainer.innerHTML = `
+          <div class="col-12">
+            <div class="alert alert-info">
+              <p class="mb-0">You haven't bookmarked any stories yet.</p>
+            </div>
+            <p class="mt-3">
+              <a href="/stories" class="btn btn-primary">Explore Stories</a>
+            </p>
+          </div>
+        `;
+        return;
+      }
+      
+      data.bookmarks.forEach(bookmark => {
+        const bookmarkCard = createBookmarkCard(bookmark);
+        bookmarksContainer.appendChild(bookmarkCard);
+      });
+      
+      updatePagination();
+    })
+    .catch(error => {
+      console.error('Error fetching bookmarks:', error);
+      if (error.message !== 'Authentication required') {
+        showAlert('Failed to load bookmarks', 'danger');
+      }
+    });
+  }
+  
+  function updatePagination() {
+    const paginationControls = document.getElementById('pagination-controls');
+    paginationControls.innerHTML = '';
+    
+    if (totalPages <= 1) {
+      return;
+    }
+    
+    const paginationNav = document.createElement('nav');
+    paginationNav.setAttribute('aria-label', 'Page navigation');
+    
+    const paginationList = document.createElement('ul');
+    paginationList.className = 'pagination';
+    
+    // Previous button
+    const prevItem = document.createElement('li');
+    prevItem.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+    
+    const prevLink = document.createElement('a');
+    prevLink.className = 'page-link';
+    prevLink.href = '#';
+    prevLink.textContent = 'Previous';
+    
+    if (currentPage > 1) {
+      prevLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        fetchBookmarks(currentPage - 1);
+      });
+    }
+    
+    prevItem.appendChild(prevLink);
+    paginationList.appendChild(prevItem);
+    
+    // Page numbers
+    for (let i = 1; i <= totalPages; i++) {
+      const pageItem = document.createElement('li');
+      pageItem.className = `page-item ${i === currentPage ? 'active' : ''}`;
+      
+      const pageLink = document.createElement('a');
+      pageLink.className = 'page-link';
+      pageLink.href = '#';
+      pageLink.textContent = i;
+      
+      if (i !== currentPage) {
+        pageLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          fetchBookmarks(i);
+        });
+      }
+      
+      pageItem.appendChild(pageLink);
+      paginationList.appendChild(pageItem);
+    }
+    
+    // Next button
+    const nextItem = document.createElement('li');
+    nextItem.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+    
+    const nextLink = document.createElement('a');
+    nextLink.className = 'page-link';
+    nextLink.href = '#';
+    nextLink.textContent = 'Next';
+    
+    if (currentPage < totalPages) {
+      nextLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        fetchBookmarks(currentPage + 1);
+      });
+    }
+    
+    nextItem.appendChild(nextLink);
+    paginationList.appendChild(nextItem);
+    
+    paginationNav.appendChild(paginationList);
+    paginationControls.appendChild(paginationNav);
+  }
+  
+  function createBookmarkCard(bookmark) {
+    const col = document.createElement('div');
+    col.className = 'col-md-6 mb-4';
+    
+    const card = document.createElement('div');
+    card.className = 'card h-100 story-card';
+    
+    const cardBody = document.createElement('div');
+    cardBody.className = 'card-body';
+    
+    const title = document.createElement('h5');
+    title.className = 'card-title';
+    title.textContent = bookmark.title;
+    
+    const author = document.createElement('h6');
+    author.className = 'card-subtitle mb-2 text-muted';
+    author.textContent = `By ${bookmark.author_username}`;
+    
+    const content = document.createElement('p');
+    content.className = 'card-text';
+    content.textContent = bookmark.content.length > 150 ? 
+      bookmark.content.substring(0, 150) + '...' : 
+      bookmark.content;
+    
+    const footer = document.createElement('div');
+    footer.className = 'card-footer d-flex justify-content-between align-items-center';
+    
+    const dateDiv = document.createElement('div');
+    
+    const createdDate = document.createElement('small');
+    createdDate.className = 'text-muted d-block';
+    createdDate.textContent = `Created: ${new Date(bookmark.created_at).toLocaleDateString()}`;
+    
+    const bookmarkedDate = document.createElement('small');
+    bookmarkedDate.className = 'text-muted d-block';
+    bookmarkedDate.textContent = `Bookmarked: ${new Date(bookmark.bookmarked_at).toLocaleDateString()}`;
+    
+    dateDiv.appendChild(createdDate);
+    dateDiv.appendChild(bookmarkedDate);
+    
+    const buttonsDiv = document.createElement('div');
+    
+    const readButton = document.createElement('a');
+    readButton.href = `/story/${bookmark.id}`;
+    readButton.className = 'btn btn-sm btn-outline-info me-2';
+    readButton.textContent = 'Read';
+    
+    const removeButton = document.createElement('button');
+    removeButton.className = 'btn btn-sm btn-outline-danger';
+    removeButton.textContent = 'Remove';
+    removeButton.onclick = function() {
+      removeBookmark(bookmark.id, col);
+    };
+    
+    buttonsDiv.appendChild(readButton);
+    buttonsDiv.appendChild(removeButton);
+    
+    footer.appendChild(dateDiv);
+    footer.appendChild(buttonsDiv);
+    
+    cardBody.appendChild(title);
+    cardBody.appendChild(author);
+    cardBody.appendChild(content);
+    
+    card.appendChild(cardBody);
+    card.appendChild(footer);
+    
+    col.appendChild(card);
+    
+    return col;
+  }
+  
+  function removeBookmark(storyId, element) {
+    if (!confirm('Are you sure you want to remove this bookmark?')) {
+      return;
+    }
+    
+    fetch(`/api/bookmark/${storyId}`, {
+      method: 'DELETE',
+      credentials: 'same-origin'
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to remove bookmark');
+      }
+      return response.json();
+    })
+    .then(data => {
+      element.remove();
+      showAlert('Bookmark removed successfully', 'success');
+      
+      // Check if there are no more bookmarks
+      const bookmarksContainer = document.getElementById('bookmarks-container');
+      if (bookmarksContainer.children.length === 0) {
+        fetchBookmarks(1); // Refresh to show the "no bookmarks" message
+      }
+    })
+    .catch(error => {
+      console.error('Error removing bookmark:', error);
+      showAlert('Failed to remove bookmark', 'danger');
+    });
+  }
+</script>
+{% endblock %}

@@ -46,14 +46,20 @@ with app.app_context():
     from routes.stories import stories_bp
     from routes.bookmarks import bookmarks_bp
     
-    # Register blueprints with proper URL prefixes
+    # Import web blueprint
+    from routes.web import web_bp
+    
+    # Register API blueprints with proper URL prefixes
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(stories_bp, url_prefix='/api')
     app.register_blueprint(bookmarks_bp, url_prefix='/api')
     
-    # Add a root route for API status check
-    @app.route('/')
-    def index():
+    # Register web blueprint for frontend
+    app.register_blueprint(web_bp)
+    
+    # Add a API status check route
+    @app.route('/api')
+    def api_status():
         return jsonify({
             'status': 'online',
             'app': 'RecommRead API',
