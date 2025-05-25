@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, session
-from app import db
+from extensions import db
 from models import Story, User
 from utils import login_required
 import logging
