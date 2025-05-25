@@ -2,6 +2,8 @@ from datetime import datetime
 from extensions import db
 
 class User(db.Model):
+    __tablename__ = 'users'   # Add this line
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -22,10 +24,12 @@ class User(db.Model):
         }
 
 class Story(db.Model):
+    __tablename__ = 'stories'  # Add this line
+
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    author_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    author_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -45,9 +49,11 @@ class Story(db.Model):
         }
 
 class Bookmark(db.Model):
+    __tablename__ = 'bookmarks'  # Add this line
+
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    story_id = db.Column(db.Integer, db.ForeignKey('story.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    story_id = db.Column(db.Integer, db.ForeignKey('stories.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Create a unique constraint to prevent duplicate bookmarks
