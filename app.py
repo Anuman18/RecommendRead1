@@ -1,3 +1,4 @@
+print("Starting app")
 import os
 import logging
 from flask import Flask, jsonify

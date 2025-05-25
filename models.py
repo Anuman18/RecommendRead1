@@ -1,3 +1,4 @@
+print("models.py imported")
 from datetime import datetime
 from extensions import db
 
