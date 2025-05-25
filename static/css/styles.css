@@ -1,0 +1,38 @@
+/* Main styling for RecommRead frontend */
+body {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.navbar {
+  margin-bottom: 20px;
+}
+
+.story-card {
+  margin-bottom: 20px;
+}
+
+.auth-form {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 15px;
+}
+
+.story-content {
+  white-space: pre-line;
+}
+
+.bookmark-btn {
+  cursor: pointer;
+}
+
+.story-details {
+  margin-top: 20px;
+}
+
+.alert-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+}

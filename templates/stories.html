@@ -1,0 +1,285 @@
+{% extends "layout.html" %}
+
+{% block title %}Stories{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1>All Stories</h1>
+      <div class="user-auth-required" style="display: none;">
+        <a href="/create-story" class="btn btn-primary">Create New Story</a>
+      </div>
+    </div>
+    
+    <div id="stories-container" class="row">
+      <div class="text-center">
+        <div class="spinner-border" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    </div>
+    
+    <div id="pagination-controls" class="d-flex justify-content-center mt-4">
+      <!-- Pagination will be inserted here -->
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let currentPage = 1;
+  let totalPages = 1;
+  
+  document.addEventListener('DOMContentLoaded', function() {
+    fetchStories(currentPage);
+  });
+  
+  function fetchStories(page) {
+    const storiesContainer = document.getElementById('stories-container');
+    storiesContainer.innerHTML = `
+      <div class="text-center w-100">
+        <div class="spinner-border" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    `;
+    
+    fetch(`/api/stories?page=${page}&per_page=10`)
+      .then(response => response.json())
+      .then(data => {
+        storiesContainer.innerHTML = '';
+        
+        currentPage = data.current_page;
+        totalPages = data.pages;
+        
+        if (data.stories.length === 0) {
+          storiesContainer.innerHTML = '<div class="col-12"><p class="text-center">No stories available yet.</p></div>';
+          return;
+        }
+        
+        data.stories.forEach(story => {
+          const storyCard = createStoryCard(story);
+          storiesContainer.appendChild(storyCard);
+        });
+        
+        updatePagination();
+      })
+      .catch(error => {
+        console.error('Error fetching stories:', error);
+        showAlert('Failed to load stories', 'danger');
+      });
+  }
+  
+  function updatePagination() {
+    const paginationControls = document.getElementById('pagination-controls');
+    paginationControls.innerHTML = '';
+    
+    if (totalPages <= 1) {
+      return;
+    }
+    
+    const paginationNav = document.createElement('nav');
+    paginationNav.setAttribute('aria-label', 'Page navigation');
+    
+    const paginationList = document.createElement('ul');
+    paginationList.className = 'pagination';
+    
+    // Previous button
+    const prevItem = document.createElement('li');
+    prevItem.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+    
+    const prevLink = document.createElement('a');
+    prevLink.className = 'page-link';
+    prevLink.href = '#';
+    prevLink.textContent = 'Previous';
+    
+    if (currentPage > 1) {
+      prevLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        fetchStories(currentPage - 1);
+      });
+    }
+    
+    prevItem.appendChild(prevLink);
+    paginationList.appendChild(prevItem);
+    
+    // Page numbers
+    for (let i = 1; i <= totalPages; i++) {
+      const pageItem = document.createElement('li');
+      pageItem.className = `page-item ${i === currentPage ? 'active' : ''}`;
+      
+      const pageLink = document.createElement('a');
+      pageLink.className = 'page-link';
+      pageLink.href = '#';
+      pageLink.textContent = i;
+      
+      if (i !== currentPage) {
+        pageLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          fetchStories(i);
+        });
+      }
+      
+      pageItem.appendChild(pageLink);
+      paginationList.appendChild(pageItem);
+    }
+    
+    // Next button
+    const nextItem = document.createElement('li');
+    nextItem.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+    
+    const nextLink = document.createElement('a');
+    nextLink.className = 'page-link';
+    nextLink.href = '#';
+    nextLink.textContent = 'Next';
+    
+    if (currentPage < totalPages) {
+      nextLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        fetchStories(currentPage + 1);
+      });
+    }
+    
+    nextItem.appendChild(nextLink);
+    paginationList.appendChild(nextItem);
+    
+    paginationNav.appendChild(paginationList);
+    paginationControls.appendChild(paginationNav);
+  }
+  
+  function createStoryCard(story) {
+    const col = document.createElement('div');
+    col.className = 'col-md-6 mb-4';
+    
+    const card = document.createElement('div');
+    card.className = 'card h-100 story-card';
+    
+    const cardBody = document.createElement('div');
+    cardBody.className = 'card-body';
+    
+    const title = document.createElement('h5');
+    title.className = 'card-title';
+    title.textContent = story.title;
+    
+    const author = document.createElement('h6');
+    author.className = 'card-subtitle mb-2 text-muted';
+    author.textContent = `By ${story.author_username}`;
+    
+    const content = document.createElement('p');
+    content.className = 'card-text';
+    content.textContent = story.content.length > 150 ? 
+      story.content.substring(0, 150) + '...' : 
+      story.content;
+    
+    const footer = document.createElement('div');
+    footer.className = 'card-footer d-flex justify-content-between align-items-center';
+    
+    const date = document.createElement('small');
+    date.className = 'text-muted';
+    date.textContent = new Date(story.created_at).toLocaleDateString();
+    
+    const buttonsDiv = document.createElement('div');
+    
+    const readButton = document.createElement('a');
+    readButton.href = `/story/${story.id}`;
+    readButton.className = 'btn btn-sm btn-outline-info me-2';
+    readButton.textContent = 'Read More';
+    
+    buttonsDiv.appendChild(readButton);
+    
+    // Add bookmark button for authenticated users
+    const loggedInUser = getCurrentUser();
+    if (loggedInUser) {
+      const bookmarkButton = document.createElement('button');
+      bookmarkButton.className = 'btn btn-sm btn-outline-secondary bookmark-btn';
+      bookmarkButton.innerHTML = '<i class="bi bi-bookmark"></i>';
+      bookmarkButton.title = 'Bookmark this story';
+      bookmarkButton.onclick = function() {
+        toggleBookmark(story.id, bookmarkButton);
+      };
+      
+      buttonsDiv.appendChild(bookmarkButton);
+      
+      // Check if story is already bookmarked
+      checkIfBookmarked(story.id, bookmarkButton);
+    }
+    
+    footer.appendChild(date);
+    footer.appendChild(buttonsDiv);
+    
+    cardBody.appendChild(title);
+    cardBody.appendChild(author);
+    cardBody.appendChild(content);
+    
+    card.appendChild(cardBody);
+    card.appendChild(footer);
+    
+    col.appendChild(card);
+    
+    return col;
+  }
+  
+  function checkIfBookmarked(storyId, button) {
+    fetch('/api/bookmarks', {
+      credentials: 'same-origin'
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to fetch bookmarks');
+      }
+      return response.json();
+    })
+    .then(data => {
+      const bookmarked = data.bookmarks.some(bookmark => bookmark.id === storyId);
+      if (bookmarked) {
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-secondary');
+        button.innerHTML = '<i class="bi bi-bookmark-fill"></i>';
+        button.title = 'Remove bookmark';
+      }
+    })
+    .catch(error => {
+      console.error('Error checking bookmarks:', error);
+    });
+  }
+  
+  function toggleBookmark(storyId, button) {
+    const isBookmarked = button.classList.contains('btn-secondary');
+    
+    const url = `/api/bookmark/${storyId}`;
+    const method = isBookmarked ? 'DELETE' : 'POST';
+    
+    fetch(url, {
+      method: method,
+      credentials: 'same-origin'
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to update bookmark');
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (isBookmarked) {
+        button.classList.remove('btn-secondary');
+        button.classList.add('btn-outline-secondary');
+        button.innerHTML = '<i class="bi bi-bookmark"></i>';
+        button.title = 'Bookmark this story';
+        showAlert('Bookmark removed', 'info');
+      } else {
+        button.classList.remove('btn-outline-secondary');
+        button.classList.add('btn-secondary');
+        button.innerHTML = '<i class="bi bi-bookmark-fill"></i>';
+        button.title = 'Remove bookmark';
+        showAlert('Story bookmarked', 'success');
+      }
+    })
+    .catch(error => {
+      console.error('Error updating bookmark:', error);
+      showAlert('Failed to update bookmark', 'danger');
+    });
+  }
+</script>
+{% endblock %}
